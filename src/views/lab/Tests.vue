@@ -105,6 +105,14 @@
                 <span class="t-chip-label">Результат</span>
                 <span class="t-chip-val">{{ t.result ?? '—' }}</span>
               </div>
+              <div class="t-chip">
+                <span class="t-chip-label">Реф. знач.</span>
+                <span class="t-chip-val">{{ refRange(t) }}</span>
+              </div>
+              <div class="t-chip">
+                <span class="t-chip-label">Ед. изм.</span>
+                <span class="t-chip-val">{{ t.refUnit ?? '—' }}</span>
+              </div>
             </div>
 
             <!-- Status badge -->
@@ -140,7 +148,7 @@
     v-model:visible="rd.visible"
     modal
     :header="`Результаты тестов · Образец #${rd.specimenId}`"
-    :style="{ width: '500px' }"
+    :style="{ width: '580px' }"
     :draggable="false"
   >
     <div class="rd-body">
@@ -166,6 +174,7 @@
             @blur="validateResult(t.analysisId)"
           />
         </div>
+        <span class="rd-ref">{{ refRange(t) }}{{ t.refUnit ? ' ' + t.refUnit : '' }}</span>
         <span class="rd-error-msg">{{ rd.errors[t.analysisId] }}</span>
       </div>
 
@@ -391,6 +400,11 @@ async function submitResults() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
+function refRange(t) {
+  if (t.refMin == null && t.refMax == null) return '—';
+  return `${t.refMin ?? '?'} – ${t.refMax ?? '?'}`;
+}
+
 const truncate = (str, max = 30) =>
   str == null ? '—' : str.length > max ? str.slice(0, max) + '…' : str;
 
@@ -742,10 +756,19 @@ onMounted(() => fetchTests(0));
 .rd-input::-webkit-outer-spin-button { -webkit-appearance: none; }
 .rd-input[type=number] { -moz-appearance: textfield; }
 
+.rd-ref {
+  font-size: 0.75rem;
+  font-family: monospace;
+  color: #6b7280;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 110px;
+}
+
 .rd-error-msg {
   font-size: 0.72rem;
   color: #f43f5e;
-  min-width: 100px;
+  min-width: 80px;
   flex-shrink: 0;
 }
 
