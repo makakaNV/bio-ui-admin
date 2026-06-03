@@ -53,32 +53,34 @@
         <i class="pi pi-users" /><span>Пользователи не найдены</span>
       </div>
 
-      <div v-else class="user-list">
-        <div
-          v-for="u in users"
-          :key="u.id"
-          class="user-card"
-          @click="openDetail(u)"
-        >
-          <div class="dots-col">
-            <span
-              class="dot"
-              :class="`dot--${u.registrationStatus}`"
-              :title="STATUS_LABELS[u.registrationStatus] ?? u.registrationStatus"
-            />
-            <span
-              class="dot"
-              :style="rolesDotStyle(u)"
-              :title="(u.roles ?? []).map(r => r.name).join(', ') || 'Нет ролей'"
-            />
+      <div v-else class="user-columns">
+        <div v-for="(col, ci) in userColumns" :key="ci" class="user-col">
+          <div
+            v-for="u in col"
+            :key="u.id"
+            class="user-card"
+            @click="openDetail(u)"
+          >
+            <div class="dots-col">
+              <span
+                class="dot"
+                :class="`dot--${u.registrationStatus}`"
+                :title="STATUS_LABELS[u.registrationStatus] ?? u.registrationStatus"
+              />
+              <span
+                class="dot"
+                :style="rolesDotStyle(u)"
+                :title="(u.roles ?? []).map(r => r.name).join(', ') || 'Нет ролей'"
+              />
+            </div>
+            <span class="user-id">#{{ u.id }}</span>
+            <span class="user-name">{{ u.username ?? '—' }}</span>
+            <div class="user-middle">
+              <span class="user-email">{{ u.email ?? '—' }}</span>
+              <span class="login-val">{{ formatTs(u.lastLogin) }}</span>
+            </div>
+            <i class="pi pi-chevron-right user-arrow" />
           </div>
-          <span class="user-id">#{{ u.id }}</span>
-          <span class="user-name">{{ u.username ?? '—' }}</span>
-          <div class="user-middle">
-            <span class="user-email">{{ u.email ?? '—' }}</span>
-            <span class="login-val">{{ formatTs(u.lastLogin) }}</span>
-          </div>
-          <i class="pi pi-chevron-right user-arrow" />
         </div>
       </div>
 
@@ -304,9 +306,12 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import UserService from '@/services/UserService';
+
+const route = useRoute();
 
 // ── Search ────────────────────────────────────────────────────────
 const search      = ref({ id: '', text: '' });
@@ -316,6 +321,11 @@ const searchResultMsg = ref('');
 // ── List state ────────────────────────────────────────────────────
 const users        = ref([]);
 const loading      = ref(false);
+
+const userColumns = computed(() => {
+  const half = Math.ceil(users.value.length / 2);
+  return [users.value.slice(0, half), users.value.slice(half)];
+});
 const error        = ref(null);
 const currentPage  = ref(0);
 const pageLimit    = ref(20);
@@ -563,7 +573,15 @@ function clearSearch() {
   fetchUsers(0, pageLimit.value);
 }
 
-onMounted(() => fetchUsers(0));
+onMounted(() => {
+  const kw = route.query.keyword;
+  if (kw) {
+    search.value.text = String(kw);
+    searchByText(0);
+  } else {
+    fetchUsers(0);
+  }
+});
 </script>
 
 <style scoped>
@@ -667,12 +685,19 @@ onMounted(() => fetchUsers(0));
 .state-msg .pi { font-size: 2rem; }
 .state-msg--error { color: #be123c; }
 
-/* ── User list ────────────────────────────────────────────────────── */
-.user-list {
+/* ── User columns ─────────────────────────────────────────────────── */
+.user-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  padding: 0.5rem;
+}
+
+.user-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-col:first-child .user-card {
+  border-right: 1px solid #f3f4f6;
 }
 
 /* ── User card ────────────────────────────────────────────────────── */
@@ -681,12 +706,12 @@ onMounted(() => fetchUsers(0));
   align-items: center;
   gap: 0.875rem;
   padding: 0.75rem 1rem;
-  border: 1px solid #f3f4f6;
-  border-radius: 8px;
+  border-bottom: 1px solid #f3f4f6;
   cursor: pointer;
-  transition: background 0.1s, border-color 0.15s;
+  transition: background 0.1s;
 }
-.user-card:hover { background: #fdf8fb; border-color: #fecdd3; }
+.user-card:last-child { border-bottom: none; }
+.user-card:hover { background: #fdf8fb; }
 
 /* Dots */
 .dots-col {

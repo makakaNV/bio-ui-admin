@@ -95,7 +95,10 @@
             </div>
             <div class="chip">
               <span class="chip-label">Пациент</span>
-              <span class="chip-val chip-val--link">{{ s.patientId ?? '—' }}</span>
+              <span
+                class="chip-val chip-val--link"
+                @click.stop="goToPatient(s.patientId)"
+              >{{ s.patientId ?? '—' }}</span>
             </div>
             <div class="chip">
               <span class="chip-label">Биомат.</span>
@@ -481,6 +484,10 @@ function goToBiomaterial(id) {
 
 function goToContainer(id) {
   if (id) router.push({ name: 'Containers', query: { id } });
+}
+
+function goToPatient(id) {
+  if (id) router.push({ name: 'Patients', query: { patientId: id } });
 }
 
 function formatTs(value) {
