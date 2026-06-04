@@ -19,4 +19,7 @@ export default {
   getRecent() {
     return apiClient.get('/analyses/recent');
   },
+  getByIds(ids) {
+    return apiClient.post('/analyses/ids', ids);
+  },
 };

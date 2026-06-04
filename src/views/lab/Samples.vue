@@ -500,9 +500,13 @@ function formatTs(value) {
 
 onMounted(() => {
   const qSpecimen = route.query.specimenId;
+  const qOrder    = route.query.orderId;
   if (qSpecimen && !isNaN(Number(qSpecimen))) {
     search.specimenId = String(qSpecimen);
     searchBySpecimenId();
+  } else if (qOrder && !isNaN(Number(qOrder))) {
+    search.orderId = String(qOrder);
+    searchByOrderId();
   } else {
     fetchSpecimens(0);
   }

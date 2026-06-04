@@ -13,4 +13,7 @@ export default {
   getAllGroups(page = 0, limit = 100) {
     return apiClient.get('/panels-group/all', { params: { page, limit } });
   },
+  getByIds(ids) {
+    return apiClient.post('/panels/ids', ids);
+  },
 };

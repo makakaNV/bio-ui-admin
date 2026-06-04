@@ -1,12 +1,16 @@
 import apiClient from './api';
 
 export default {
-  /**
-   * Получить все заказы с пагинацией.
-   * @param {number} page  — номер страницы (0-based)
-   * @param {number} size  — размер страницы
-   */
-  getAll(page = 0, size = 20) {
-    return apiClient.get('/orders/all', { params: { page, size } });
-  }
+  getAll(page = 0, limit = 15) {
+    return apiClient.get('/orders/all', { params: { page, limit } });
+  },
+  getById(id) {
+    return apiClient.get(`/orders/${id}`);
+  },
+  getByPatientId(id, page = 0, limit = 15) {
+    return apiClient.get(`/orders/patient/${id}`, { params: { page, limit } });
+  },
+  cancel(id, cancelReason) {
+    return apiClient.put(`/orders/${id}/cancel`, { cancelReason });
+  },
 };
