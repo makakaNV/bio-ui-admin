@@ -1,5 +1,6 @@
 <template>
-  <!-- ── Search bar ────────────────────────────────────────────────── -->
+  <!-- ── Top bar: search + create ──────────────────────────────────── -->
+  <div class="top-bar">
   <div class="search-bar">
     <div class="search-field search-field--id" :class="{ 'search-field--active': searchMode === 'id' }">
       <i class="pi pi-hashtag search-icon" />
@@ -26,6 +27,11 @@
         <i class="pi pi-times" />
       </button>
     </div>
+  </div>
+  <button class="btn-create-bio" @click="createDialog.visible = true">
+    <i class="pi pi-plus" />
+    Создать биоматериал
+  </button>
   </div>
 
   <!-- ── Search result bar ─────────────────────────────────────────── -->
@@ -92,6 +98,10 @@
   >
     <template v-if="selectedBio">
       <div class="detail-body">
+        <div class="detail-actions">
+          <button class="action-btn" @click="openEdit">Изменить</button>
+          <button class="action-btn action-btn--danger" @click="openDelete">Удалить</button>
+        </div>
         <div class="detail-row">
           <span class="detail-key"><i class="pi pi-hashtag" />ID</span>
           <span class="detail-val">{{ selectedBio.id }}</span>
@@ -151,14 +161,59 @@
       </div>
     </template>
   </Dialog>
+
+  <!-- ── Create biomaterial dialog ─────────────────────────────────── -->
+  <BiomaterialFormDialog
+    v-model:visible="createDialog.visible"
+    @created="onBiomaterialCreated"
+  />
+
+  <!-- ── Edit biomaterial dialog ───────────────────────────────────── -->
+  <BiomaterialFormDialog
+    v-model:visible="editDialog.visible"
+    :biomaterial="selectedBio"
+    @updated="onBiomaterialUpdated"
+  />
+
+  <!-- ── Delete biomaterial dialog ─────────────────────────────────── -->
+  <Dialog
+    v-model:visible="deleteDialog.visible"
+    modal
+    header="Удалить биоматериал?"
+    :style="{ width: '420px' }"
+    :draggable="false"
+    :closable="!deleteDialog.loading"
+  >
+    <div class="del-body">
+      <p class="del-text">
+        Биоматериал <strong>{{ selectedBio?.code }}</strong> будет выведен из оборота
+        и станет недоступен для назначения в новых исследованиях. Не влияет на проходящие исследования.
+      </p>
+      <div v-if="deleteDialog.error" class="del-error">
+        <i class="pi pi-exclamation-circle" />{{ deleteDialog.error }}
+      </div>
+    </div>
+    <template #footer>
+      <div class="del-footer">
+        <button type="button" class="btn-cancel-del" :disabled="deleteDialog.loading" @click="deleteDialog.visible = false">
+          Отмена
+        </button>
+        <button type="button" class="btn-confirm-del" :disabled="deleteDialog.loading" @click="confirmDelete">
+          <i v-if="deleteDialog.loading" class="pi pi-spin pi-spinner" />
+          <span>{{ deleteDialog.loading ? 'Удаление...' : 'Удалить' }}</span>
+        </button>
+      </div>
+    </template>
+  </Dialog>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import BiomaterialsService from '@/services/BiomaterialsService';
+import BiomaterialFormDialog from '@/components/BiomaterialFormDialog.vue';
 
 const route  = useRoute();
 const router = useRouter();
@@ -173,7 +228,7 @@ const TYPE_LABELS = {
 
 const TIME_LABELS = {
   MORNING: 'Утром',
-  DAILY:   'Ежедневно',
+  DAILY:   'Днем',
   EVENING: 'Вечером',
   RANDOM:  'Произвольно',
 };
@@ -193,6 +248,10 @@ const searchResultMessage = ref('');
 
 const selectedBio   = ref(null);
 const detailVisible = ref(false);
+
+const createDialog = reactive({ visible: false });
+const editDialog   = reactive({ visible: false });
+const deleteDialog = reactive({ visible: false, loading: false, error: '' });
 
 // ── Text filter (client-side) ──────────────────────────────────────
 const filteredBiomaterials = computed(() => {
@@ -266,6 +325,45 @@ function goToContainer(id) {
   if (id) router.push({ name: 'Containers', query: { id } });
 }
 
+// ── Create dialog ──────────────────────────────────────────────────
+function onBiomaterialCreated() {
+  fetchBiomaterials(currentPage.value, pageLimit.value);
+}
+
+// ── Edit dialog ────────────────────────────────────────────────────
+function openEdit() {
+  editDialog.visible = true;
+}
+
+function onBiomaterialUpdated(updated) {
+  if (updated) {
+    selectedBio.value = updated;
+    const idx = biomaterials.value.findIndex(b => b.id === updated.id);
+    if (idx !== -1) biomaterials.value[idx] = updated;
+  }
+}
+
+// ── Delete dialog ──────────────────────────────────────────────────
+function openDelete() {
+  deleteDialog.error   = '';
+  deleteDialog.visible = true;
+}
+
+async function confirmDelete() {
+  deleteDialog.loading = true;
+  deleteDialog.error   = '';
+  try {
+    await BiomaterialsService.delete(selectedBio.value.id);
+    deleteDialog.visible = false;
+    detailVisible.value  = false;
+    fetchBiomaterials(currentPage.value, pageLimit.value);
+  } catch (err) {
+    deleteDialog.error = err.response?.data?.message ?? 'Не удалось удалить биоматериал';
+  } finally {
+    deleteDialog.loading = false;
+  }
+}
+
 // ── Pagination ─────────────────────────────────────────────────────
 function onPage(event) {
   fetchBiomaterials(event.page, event.rows);
@@ -302,6 +400,40 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ── Top bar ──────────────────────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.top-bar .search-bar {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.btn-create-bio {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1.125rem;
+  height: 38px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #9f1239;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-create-bio:hover { background: #be123c; }
+.btn-create-bio .pi { font-size: 0.8rem; }
+
 /* ── Search bar ───────────────────────────────────────────────────── */
 .search-bar {
   display: flex;
@@ -515,6 +647,7 @@ onMounted(async () => {
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
+  justify-self: start;
 }
 .bio-time-badge .pi { font-size: 0.65rem; }
 
@@ -535,6 +668,113 @@ onMounted(async () => {
   flex-direction: column;
   padding: 0.25rem 0 0.25rem;
 }
+
+/* ── Detail action buttons ────────────────────────────────────────── */
+.detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #f9fafb;
+  margin-bottom: 0.15rem;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.action-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+.action-btn--disabled {
+  color: #d1d5db;
+  cursor: default;
+}
+.action-btn--danger {
+  color: #be123c;
+  border-color: #fecdd3;
+}
+.action-btn--danger:hover:not(:disabled) {
+  background: #fff1f2;
+  border-color: #fca5a5;
+}
+
+/* ── Delete dialog ────────────────────────────────────────────────── */
+.del-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.125rem 0 0.25rem;
+}
+
+.del-text {
+  font-size: 0.8125rem;
+  color: #374151;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.del-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: #be123c;
+  margin-top: 0.25rem;
+}
+
+.del-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  width: 100%;
+}
+
+.btn-cancel-del {
+  padding: 0.5rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.btn-cancel-del:hover:not(:disabled) { background: #f9fafb; }
+.btn-cancel-del:disabled { opacity: 0.55; cursor: default; }
+
+.btn-confirm-del {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 7px;
+  background: #be123c;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s;
+}
+.btn-confirm-del:hover:not(:disabled) { background: #9f1239; }
+.btn-confirm-del:disabled { opacity: 0.55; cursor: default; }
 
 .detail-row {
   display: flex;

@@ -1,34 +1,40 @@
 <template>
-  <!-- ── Search bar ─────────────────────────────────────────────────── -->
-  <div class="search-bar">
-    <div class="search-field" :class="{ 'search-field--active': searchField === 'id' }">
-      <i class="pi pi-hashtag search-icon" />
-      <input
-        v-model="search.id"
-        class="search-input"
-        placeholder="Найти по ID заказа"
-        inputmode="numeric"
-        @keyup.enter="searchById"
-        @input="onIdInput"
-      />
-      <button v-if="searchField === 'id'" class="search-clear" @click="clearSearch" title="Сбросить">
-        <i class="pi pi-times" />
-      </button>
+  <!-- ── Top bar: search + create ───────────────────────────────────── -->
+  <div class="top-bar">
+    <div class="search-bar">
+      <div class="search-field" :class="{ 'search-field--active': searchField === 'id' }">
+        <i class="pi pi-hashtag search-icon" />
+        <input
+          v-model="search.id"
+          class="search-input"
+          placeholder="Найти по ID заказа"
+          inputmode="numeric"
+          @keyup.enter="searchById"
+          @input="onIdInput"
+        />
+        <button v-if="searchField === 'id'" class="search-clear" @click="clearSearch" title="Сбросить">
+          <i class="pi pi-times" />
+        </button>
+      </div>
+      <div class="search-field" :class="{ 'search-field--active': searchField === 'patient' }">
+        <i class="pi pi-user search-icon" />
+        <input
+          v-model="search.patientId"
+          class="search-input"
+          placeholder="Найти по ID пациента"
+          inputmode="numeric"
+          @keyup.enter="searchByPatientId"
+          @input="onPatientIdInput"
+        />
+        <button v-if="searchField === 'patient'" class="search-clear" @click="clearSearch" title="Сбросить">
+          <i class="pi pi-times" />
+        </button>
+      </div>
     </div>
-    <div class="search-field" :class="{ 'search-field--active': searchField === 'patient' }">
-      <i class="pi pi-user search-icon" />
-      <input
-        v-model="search.patientId"
-        class="search-input"
-        placeholder="Найти по ID пациента"
-        inputmode="numeric"
-        @keyup.enter="searchByPatientId"
-        @input="onPatientIdInput"
-      />
-      <button v-if="searchField === 'patient'" class="search-clear" @click="clearSearch" title="Сбросить">
-        <i class="pi pi-times" />
-      </button>
-    </div>
+    <button class="btn-create-order" @click="createDialog.visible = true">
+      <i class="pi pi-plus" />
+      Создать заказ
+    </button>
   </div>
 
   <!-- ── Search result bar ─────────────────────────────────────────── -->
@@ -216,12 +222,17 @@
 
     </div>
 
-    <template v-if="detail.order && detail.order.status !== 'CANCELED'" #footer>
+    <template v-if="detail.order" #footer>
       <div class="dlg-footer">
-        <button class="btn-cancel-order" @click="openCancel">
-          <i class="pi pi-ban" />
-          Отменить заказ
+        <button class="btn-go-samples" @click="goToSamples(detail.order.id)">
+          <i class="pi pi-box" />
+          Перейти к образцам
         </button>
+        <button
+          v-if="detail.order.status !== 'CANCELED'"
+          class="btn-cancel-order"
+          @click="openCancel"
+        >Отменить заказ</button>
       </div>
     </template>
   </Dialog>
@@ -237,10 +248,9 @@
   >
     <div class="cancel-body">
       <div class="cancel-warning">
-        <i class="pi pi-exclamation-triangle cancel-warning-icon" />
         <div class="cancel-warning-text">
           <p>Заказ <strong>#{{ detail.order?.id }}</strong> останется в системе, но дальнейшая диагностика будет невозможна.</p>
-          <p>Все связанные образцы будут <strong>утилизированы</strong>.</p>
+          <p>Все связанные образцы будут утилизированы.</p>
         </div>
       </div>
 
@@ -272,24 +282,31 @@
           @click="confirmCancel"
         >
           <i v-if="cancelDialog.loading" class="pi pi-spin pi-spinner" />
-          <i v-else class="pi pi-ban" />
           {{ cancelDialog.loading ? 'Отмена...' : 'Отменить заказ' }}
         </button>
       </div>
     </template>
   </Dialog>
+
+  <!-- ── Create order dialog ───────────────────────────────────────── -->
+  <OrderCreateDialog
+    v-model:visible="createDialog.visible"
+    @created="onOrderCreated"
+  />
 </template>
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import OrdersService   from '@/services/OrdersService';
 import AnalysesService from '@/services/AnalysesService';
 import PanelsService   from '@/services/PanelsService';
+import OrderCreateDialog from '@/components/OrderCreateDialog.vue';
 
 const router = useRouter();
+const route  = useRoute();
 
 // ── Status map ────────────────────────────────────────────────
 const STATUS_MAP = {
@@ -324,6 +341,13 @@ const error        = ref(null);
 const currentPage  = ref(0);
 const pageLimit    = ref(15);
 const totalRecords = ref(0);
+
+// ── Create dialog ─────────────────────────────────────────────
+const createDialog = reactive({ visible: false });
+
+function onOrderCreated() {
+  fetchOrders(currentPage.value, pageLimit.value);
+}
 
 // ── Detail dialog ─────────────────────────────────────────────
 const detail = reactive({
@@ -546,10 +570,52 @@ function formatIds(arr) {
   return arr.join(', ');
 }
 
-onMounted(() => fetchOrders(0));
+onMounted(() => {
+  const qPatientId = route.query.patientId;
+  if (qPatientId && !isNaN(Number(qPatientId))) {
+    search.patientId = String(qPatientId);
+    searchByPatientId();
+  } else {
+    fetchOrders(0);
+  }
+});
 </script>
 
 <style scoped>
+/* ── Top bar ──────────────────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.top-bar .search-bar {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.btn-create-order {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1.125rem;
+  height: 38px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #9f1239;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-create-order:hover { background: #be123c; }
+.btn-create-order .pi { font-size: 0.8rem; }
+
 /* ── Search bar ───────────────────────────────────────────────── */
 .search-bar {
   display: flex;
@@ -920,9 +986,29 @@ onMounted(() => fetchOrders(0));
 /* ── Detail dialog footer ─────────────────────────────────────── */
 .dlg-footer {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.625rem;
   width: 100%;
 }
+
+.btn-go-samples {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.btn-go-samples:hover { background: #f9fafb; border-color: #d1d5db; }
+.btn-go-samples .pi { font-size: 0.8rem; }
 
 .btn-cancel-order {
   display: inline-flex;
@@ -940,7 +1026,6 @@ onMounted(() => fetchOrders(0));
   transition: background 0.12s, border-color 0.12s;
 }
 .btn-cancel-order:hover { background: #fff1f2; border-color: #fca5a5; }
-.btn-cancel-order .pi { font-size: 0.8rem; }
 
 /* ── Cancel order dialog ──────────────────────────────────────── */
 .cancel-body {
@@ -952,18 +1037,10 @@ onMounted(() => fetchOrders(0));
 
 .cancel-warning {
   display: flex;
-  gap: 0.875rem;
   background: #fff1f2;
   border: 1px solid #fecdd3;
   border-radius: 8px;
   padding: 0.875rem 1rem;
-}
-
-.cancel-warning-icon {
-  font-size: 1.25rem;
-  color: #be123c;
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 
 .cancel-warning-text {

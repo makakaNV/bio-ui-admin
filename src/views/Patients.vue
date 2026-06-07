@@ -117,7 +117,8 @@
 
       <!-- Action buttons -->
       <div class="detail-actions">
-        <button class="action-btn action-btn--disabled" disabled>Исследования</button>
+        <button class="action-btn" @click="goToOrders(detail.patient.id)">Заказы</button>
+        <button class="action-btn" @click="goToSamples(detail.patient.id)">Образцы</button>
         <button class="action-btn" @click="openEdit">Изменить</button>
         <button class="action-btn action-btn--danger" @click="openDelete">Удалить</button>
       </div>
@@ -497,6 +498,15 @@ async function openDetail(p) {
 // Navigate to Users page with createdBy value as keyword search
 function goToCreatedBy(createdBy) {
   router.push({ name: 'Users', query: { keyword: createdBy } });
+}
+
+// Navigate to Orders / Samples pages filtered by this patient's ID
+function goToOrders(patientId) {
+  if (patientId) router.push({ name: 'Orders', query: { patientId } });
+}
+
+function goToSamples(patientId) {
+  if (patientId) router.push({ name: 'Samples', query: { patientId } });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────

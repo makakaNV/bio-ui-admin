@@ -22,4 +22,13 @@ export default {
   getByIds(ids) {
     return apiClient.post('/analyses/ids', ids);
   },
+  create(body) {
+    return apiClient.post('/analyses', body);
+  },
+  update(id, body) {
+    return apiClient.put(`/analyses/${id}`, body);
+  },
+  delete(id) {
+    return apiClient.delete(`/analyses/${id}`, { params: { softDelete: true } });
+  },
 };

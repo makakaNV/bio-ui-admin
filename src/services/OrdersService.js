@@ -13,4 +13,7 @@ export default {
   cancel(id, cancelReason) {
     return apiClient.put(`/orders/${id}/cancel`, { cancelReason });
   },
+  createForUser(body) {
+    return apiClient.post('/orders/for-user', body);
+  },
 };
