@@ -1,5 +1,6 @@
 <template>
-  <!-- ── Search bar ────────────────────────────────────────────────── -->
+  <!-- ── Top bar: search + create ──────────────────────────────────── -->
+  <div class="top-bar">
   <div class="search-bar">
     <div class="search-field search-field--id" :class="{ 'search-field--active': searchMode === 'id' }">
       <i class="pi pi-hashtag search-icon" />
@@ -26,6 +27,11 @@
         <i class="pi pi-times" />
       </button>
     </div>
+  </div>
+  <button class="btn-create-panel" :disabled="!isAdmin" @click="createDialog.visible = true">
+    <i class="pi pi-plus" />
+    Добавить комплекс
+  </button>
   </div>
 
   <!-- ── Search result bar ─────────────────────────────────────────── -->
@@ -116,6 +122,10 @@
   >
     <template v-if="selectedPanel">
       <div class="detail-body">
+        <div class="detail-actions">
+          <button class="action-btn" :disabled="!isAdmin" @click="openEdit">Изменить</button>
+          <button class="action-btn action-btn--danger" :disabled="!isAdmin" @click="openDelete">Удалить</button>
+        </div>
         <div class="detail-row">
           <span class="detail-key"><i class="pi pi-hashtag" />ID</span>
           <span class="detail-val">{{ selectedPanel.id }}</span>
@@ -168,17 +178,66 @@
       </div>
     </template>
   </Dialog>
+
+  <!-- ── Create panel dialog ───────────────────────────────────────── -->
+  <PanelFormDialog
+    v-model:visible="createDialog.visible"
+    @created="onPanelCreated"
+  />
+
+  <!-- ── Edit panel dialog ─────────────────────────────────────────── -->
+  <PanelFormDialog
+    v-model:visible="editDialog.visible"
+    :panel="selectedPanel"
+    @updated="onPanelUpdated"
+  />
+
+  <!-- ── Delete panel dialog ───────────────────────────────────────── -->
+  <Dialog
+    v-model:visible="deleteDialog.visible"
+    modal
+    header="Удалить комплекс?"
+    :style="{ width: '420px' }"
+    :draggable="false"
+    :closable="!deleteDialog.loading"
+  >
+    <div class="del-body">
+      <p class="del-text">
+        Комплекс <strong>{{ selectedPanel?.code }}</strong> будет выведен из оборота
+        и станет недоступен для назначения в новых исследованиях.
+      </p>
+      <div v-if="deleteDialog.error" class="del-error">
+        <i class="pi pi-exclamation-circle" />{{ deleteDialog.error }}
+      </div>
+    </div>
+    <template #footer>
+      <div class="del-footer">
+        <button type="button" class="btn-cancel-del" :disabled="deleteDialog.loading" @click="deleteDialog.visible = false">
+          Отмена
+        </button>
+        <button type="button" class="btn-confirm-del" :disabled="deleteDialog.loading" @click="confirmDelete">
+          <i v-if="deleteDialog.loading" class="pi pi-spin pi-spinner" />
+          <span>{{ deleteDialog.loading ? 'Удаление...' : 'Удалить' }}</span>
+        </button>
+      </div>
+    </template>
+  </Dialog>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import PanelsService from '@/services/PanelsService';
+import PanelFormDialog from '@/components/PanelFormDialog.vue';
+import { userRoles } from '@/stores/auth';
 
 const route  = useRoute();
 const router = useRouter();
+
+// ── Role-based permissions ────────────────────────────────────────
+const isAdmin = computed(() => userRoles.value.includes('ADMIN'));
 
 // ── State ──────────────────────────────────────────────────────────
 const panels       = ref([]);
@@ -198,6 +257,10 @@ const searchResultMessage = ref('');
 
 const selectedPanel = ref(null);
 const detailVisible = ref(false);
+
+const createDialog = reactive({ visible: false });
+const editDialog   = reactive({ visible: false });
+const deleteDialog = reactive({ visible: false, loading: false, error: '' });
 
 // ── Text filter (client-side) ──────────────────────────────────────
 const filteredPanels = computed(() => {
@@ -291,6 +354,45 @@ function goToAnalysis(id) {
   if (id) router.push({ name: 'Analyses', query: { id } });
 }
 
+// ── Create dialog ──────────────────────────────────────────────────
+function onPanelCreated() {
+  fetchPanels(currentPage.value, pageLimit.value);
+}
+
+// ── Edit dialog ────────────────────────────────────────────────────
+function openEdit() {
+  editDialog.visible = true;
+}
+
+function onPanelUpdated(updated) {
+  if (updated) {
+    selectedPanel.value = updated;
+    const idx = panels.value.findIndex(p => p.id === updated.id);
+    if (idx !== -1) panels.value[idx] = updated;
+  }
+}
+
+// ── Delete dialog ──────────────────────────────────────────────────
+function openDelete() {
+  deleteDialog.error   = '';
+  deleteDialog.visible = true;
+}
+
+async function confirmDelete() {
+  deleteDialog.loading = true;
+  deleteDialog.error   = '';
+  try {
+    await PanelsService.delete(selectedPanel.value.id);
+    deleteDialog.visible = false;
+    detailVisible.value  = false;
+    fetchPanels(currentPage.value, pageLimit.value);
+  } catch (err) {
+    deleteDialog.error = err.response?.data?.message ?? 'Не удалось удалить комплекс';
+  } finally {
+    deleteDialog.loading = false;
+  }
+}
+
 // ── Pagination ─────────────────────────────────────────────────────
 function onPage(event) {
   fetchPanels(event.page, event.rows);
@@ -327,6 +429,44 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ── Top bar: search + create ─────────────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.top-bar .search-bar {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.btn-create-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1.125rem;
+  height: 38px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background: #9f1239;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-create-panel:hover:not(:disabled) { background: #be123c; }
+.btn-create-panel:disabled {
+  background: #d1d5db;
+  cursor: default;
+}
+.btn-create-panel .pi { font-size: 0.8rem; }
+
 /* ── Search bar ───────────────────────────────────────────────────── */
 .search-bar {
   display: flex;
@@ -580,6 +720,118 @@ onMounted(async () => {
   flex-direction: column;
   padding: 0.25rem 0;
 }
+
+/* ── Detail action buttons ────────────────────────────────────────── */
+.detail-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid #f9fafb;
+  margin-bottom: 0.15rem;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.action-btn:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+.action-btn--disabled,
+.action-btn:disabled {
+  color: #d1d5db;
+  cursor: default;
+}
+.action-btn--danger {
+  color: #be123c;
+  border-color: #fecdd3;
+}
+.action-btn--danger:disabled {
+  color: #d1d5db;
+  border-color: #e5e7eb;
+}
+.action-btn--danger:hover:not(:disabled) {
+  background: #fff1f2;
+  border-color: #fca5a5;
+}
+
+/* ── Delete dialog ────────────────────────────────────────────────── */
+.del-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.125rem 0 0.25rem;
+}
+
+.del-text {
+  font-size: 0.8125rem;
+  color: #374151;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.del-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  color: #be123c;
+  margin-top: 0.25rem;
+}
+
+.del-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.625rem;
+  width: 100%;
+}
+
+.btn-cancel-del {
+  padding: 0.5rem 1.125rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: #fff;
+  color: #6b7280;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.btn-cancel-del:hover:not(:disabled) { background: #f9fafb; }
+.btn-cancel-del:disabled { opacity: 0.55; cursor: default; }
+
+.btn-confirm-del {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 7px;
+  background: #be123c;
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s;
+}
+.btn-confirm-del:hover:not(:disabled) { background: #9f1239; }
+.btn-confirm-del:disabled { opacity: 0.55; cursor: default; }
 
 .detail-row {
   display: flex;

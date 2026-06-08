@@ -118,9 +118,9 @@
       <!-- Action buttons -->
       <div class="detail-actions">
         <button class="action-btn" @click="goToOrders(detail.patient.id)">Заказы</button>
-        <button class="action-btn" @click="goToSamples(detail.patient.id)">Образцы</button>
+        <button class="action-btn" :disabled="!canAccessSamples" @click="goToSamples(detail.patient.id)">Образцы</button>
         <button class="action-btn" @click="openEdit">Изменить</button>
-        <button class="action-btn action-btn--danger" @click="openDelete">Удалить</button>
+        <button class="action-btn action-btn--danger" :disabled="!canDeletePatient" @click="openDelete">Удалить</button>
       </div>
 
       <!-- Section: Основные данные -->
@@ -294,9 +294,16 @@ import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import PatientService from '@/services/PatientService';
 import PatientCreateDialog from '@/components/PatientCreateDialog.vue';
+import { userRoles } from '@/stores/auth';
 
 const router = useRouter();
 const route  = useRoute();
+
+// ── Role-based permissions ────────────────────────────────────────
+const isAdmin = computed(() => userRoles.value.includes('ADMIN'));
+const isMLT   = computed(() => userRoles.value.includes('MLT'));
+const canAccessSamples = computed(() => isAdmin.value || isMLT.value);
+const canDeletePatient = computed(() => isAdmin.value);
 
 // ── Create dialog ─────────────────────────────────────────────────
 const createDialog = reactive({ visible: false });
@@ -1006,13 +1013,18 @@ async function openDetailById(id) {
   background: #f9fafb;
   border-color: #d1d5db;
 }
-.action-btn--disabled {
+.action-btn--disabled,
+.action-btn:disabled {
   color: #d1d5db;
   cursor: default;
 }
 .action-btn--danger {
   color: #be123c;
   border-color: #fecdd3;
+}
+.action-btn--danger:disabled {
+  color: #d1d5db;
+  border-color: #e5e7eb;
 }
 .action-btn--danger:hover:not(:disabled) {
   background: #fff1f2;

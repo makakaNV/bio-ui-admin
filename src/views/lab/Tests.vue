@@ -91,7 +91,10 @@
             <div class="test-chips">
               <div class="t-chip">
                 <span class="t-chip-label">Образец</span>
-                <span class="t-chip-val t-chip-val--link">{{ t.specimenId ?? '—' }}</span>
+                <span
+                  class="t-chip-val t-chip-val--link"
+                  @click.stop="goToSample(t.specimenId)"
+                >{{ t.specimenId ?? '—' }}</span>
               </div>
               <div class="t-chip">
                 <span class="t-chip-label">Анализ</span>
@@ -244,6 +247,10 @@ function goCollect(specimenId) {
 
 function goToAnalysis(analysisId) {
   if (analysisId) router.push({ name: 'Analyses', query: { id: analysisId } });
+}
+
+function goToSample(specimenId) {
+  if (specimenId) router.push({ name: 'Samples', query: { specimenId } });
 }
 
 // ── Grouping by specimenId ────────────────────────────────────────

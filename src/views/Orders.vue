@@ -30,6 +30,19 @@
           <i class="pi pi-times" />
         </button>
       </div>
+      <div class="search-field" :class="{ 'search-field--active': searchField === 'email' }">
+        <i class="pi pi-envelope search-icon" />
+        <input
+          v-model="search.email"
+          class="search-input"
+          placeholder="Найти по email пользователя"
+          @keyup.enter="searchByEmail"
+          @input="onEmailInput"
+        />
+        <button v-if="searchField === 'email'" class="search-clear" @click="clearSearch" title="Сбросить">
+          <i class="pi pi-times" />
+        </button>
+      </div>
     </div>
     <button class="btn-create-order" @click="createDialog.visible = true">
       <i class="pi pi-plus" />
@@ -225,7 +238,6 @@
     <template v-if="detail.order" #footer>
       <div class="dlg-footer">
         <button class="btn-go-samples" @click="goToSamples(detail.order.id)">
-          <i class="pi pi-box" />
           Перейти к образцам
         </button>
         <button
@@ -329,10 +341,11 @@ function statusStyle(status) {
 }
 
 // ── Search ────────────────────────────────────────────────────
-const search      = reactive({ id: '', patientId: '' });
-const searchField = ref(''); // '' | 'id' | 'patient'
+const search      = reactive({ id: '', patientId: '', email: '' });
+const searchField = ref(''); // '' | 'id' | 'patient' | 'email'
 const searchResultMessage  = ref('');
 const searchPatientIdStored = ref(null);
+const searchEmailStored     = ref(null);
 
 // ── List state ────────────────────────────────────────────────
 const orders       = ref([]);
@@ -402,11 +415,34 @@ async function fetchByPatientId(patientId, page = 0, limit = pageLimit.value) {
   }
 }
 
+// ── Fetch by user email ────────────────────────────────────────
+async function fetchByUserEmail(email, page = 0, limit = pageLimit.value) {
+  loading.value = true;
+  error.value   = null;
+  try {
+    const res     = await OrdersService.getByUserEmail(email, page, limit);
+    const payload = res.data?.payload;
+    orders.value       = payload?.content ?? [];
+    totalRecords.value = (payload?.pagination?.pages ?? 1) * limit;
+    currentPage.value  = page;
+    pageLimit.value    = limit;
+    if (page === 0) {
+      searchResultMessage.value = `Заказы пользователя ${email}: найдено ${orders.value.length}`;
+    }
+  } catch (err) {
+    error.value = err.response?.data?.message ?? 'Не удалось найти заказы';
+  } finally {
+    loading.value = false;
+  }
+}
+
 // ── Page change ───────────────────────────────────────────────
 function onPage(event) {
   pageLimit.value = event.rows;
   if (searchField.value === 'patient') {
     fetchByPatientId(searchPatientIdStored.value, event.page, event.rows);
+  } else if (searchField.value === 'email') {
+    fetchByUserEmail(searchEmailStored.value, event.page, event.rows);
   } else {
     fetchOrders(event.page, event.rows);
   }
@@ -442,15 +478,27 @@ async function searchByPatientId() {
   await fetchByPatientId(pid, 0, pageLimit.value);
 }
 
+// ── Search by user email ───────────────────────────────────────
+async function searchByEmail() {
+  const raw = search.email.trim();
+  if (!raw) return;
+  searchEmailStored.value = raw;
+  searchField.value       = 'email';
+  await fetchByUserEmail(raw, 0, pageLimit.value);
+}
+
 function onIdInput()        { if (!search.id.trim())        clearSearch(); }
 function onPatientIdInput() { if (!search.patientId.trim()) clearSearch(); }
+function onEmailInput()     { if (!search.email.trim())     clearSearch(); }
 
 function clearSearch() {
   searchField.value           = '';
   searchResultMessage.value   = '';
   search.id                   = '';
   search.patientId            = '';
+  search.email                = '';
   searchPatientIdStored.value = null;
+  searchEmailStored.value     = null;
   fetchOrders(0, pageLimit.value);
 }
 
@@ -570,11 +618,20 @@ function formatIds(arr) {
   return arr.join(', ');
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const qId        = route.query.id;
   const qPatientId = route.query.patientId;
-  if (qPatientId && !isNaN(Number(qPatientId))) {
+  const qEmail     = route.query.email;
+  if (qId && !isNaN(Number(qId))) {
+    search.id = String(qId);
+    await searchById();
+    if (orders.value.length === 1) openDetail(orders.value[0]);
+  } else if (qPatientId && !isNaN(Number(qPatientId))) {
     search.patientId = String(qPatientId);
     searchByPatientId();
+  } else if (qEmail) {
+    search.email = String(qEmail);
+    searchByEmail();
   } else {
     fetchOrders(0);
   }
@@ -986,7 +1043,7 @@ onMounted(() => {
 /* ── Detail dialog footer ─────────────────────────────────────── */
 .dlg-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 0.625rem;
   width: 100%;
@@ -1008,7 +1065,6 @@ onMounted(() => {
   transition: background 0.12s, border-color 0.12s;
 }
 .btn-go-samples:hover { background: #f9fafb; border-color: #d1d5db; }
-.btn-go-samples .pi { font-size: 0.8rem; }
 
 .btn-cancel-order {
   display: inline-flex;

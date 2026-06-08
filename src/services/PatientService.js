@@ -10,6 +10,9 @@ export default {
   search(body, page = 0, limit = 20) {
     return apiClient.post('/patients/search', body, { params: { page, limit } });
   },
+  getRecent(page = 0, limit = 15) {
+    return apiClient.get('/patients/all/recent', { params: { page, limit } });
+  },
   create(body) {
     return apiClient.post('/patients/create', body);
   },

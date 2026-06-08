@@ -91,7 +91,10 @@
           <div class="card-chips">
             <div class="chip">
               <span class="chip-label">Заказ</span>
-              <span class="chip-val chip-val--link">{{ s.orderId ?? '—' }}</span>
+              <span
+                class="chip-val chip-val--link"
+                @click.stop="goToOrder(s.orderId)"
+              >{{ s.orderId ?? '—' }}</span>
             </div>
             <div class="chip">
               <span class="chip-label">Пациент</span>
@@ -488,6 +491,10 @@ function goToContainer(id) {
 
 function goToPatient(id) {
   if (id) router.push({ name: 'Patients', query: { patientId: id } });
+}
+
+function goToOrder(id) {
+  if (id) router.push({ name: 'Orders', query: { id } });
 }
 
 function formatTs(value) {

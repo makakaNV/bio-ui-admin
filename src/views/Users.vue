@@ -127,7 +127,7 @@
     <!-- Action buttons -->
     <div class="detail-actions">
       <button class="action-btn" @click="openRolesDialog">Изменить роль</button>
-      <button class="action-btn action-btn--disabled" disabled>Заказы</button>
+      <button class="action-btn" @click="goToOrders">Заказы</button>
       <button class="action-btn action-btn--danger" @click="openDeleteDialog">Удалить</button>
     </div>
 
@@ -306,12 +306,13 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import UserService from '@/services/UserService';
 
-const route = useRoute();
+const route  = useRoute();
+const router = useRouter();
 
 // ── Search ────────────────────────────────────────────────────────
 const search      = ref({ id: '', text: '' });
@@ -393,6 +394,12 @@ function canDemote() {
 
 function isPendingAdd(r) {
   return !roles.originalRoles.includes(r);
+}
+
+// ── Navigation ────────────────────────────────────────────────────
+function goToOrders() {
+  const email = detail.user?.email;
+  if (email) router.push({ name: 'Orders', query: { email } });
 }
 
 async function openRolesDialog() {
@@ -844,11 +851,6 @@ onMounted(() => {
   transition: background 0.15s, border-color 0.15s;
 }
 .action-btn .pi { font-size: 0.8rem; }
-
-.action-btn--disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
 
 .action-btn--danger {
   background: #fff1f2;

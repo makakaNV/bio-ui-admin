@@ -1,18 +1,22 @@
 <template>
-  <!-- ═══════════════════════════════════ MLT VIEW ═══════════════════ -->
-  <div v-if="isMLT" class="dashboard">
+  <!-- ═══════════════════════════════ STAFF DASHBOARD ═══════════════════ -->
+  <div v-if="isMLT || isReceptionist || isAdmin" class="dashboard">
 
     <!-- Welcome bar -->
     <div class="welcome-bar">
       <div class="welcome-left">
-        <span class="welcome-greeting">Добро пожаловать, {{ userName || 'Лаборант' }}</span>
+        <span class="welcome-greeting">Добро пожаловать{{ userName ? ', ' + userName : '' }}</span>
         <span class="welcome-date">{{ todayStr }}</span>
       </div>
-      <span class="role-badge">Лаборант</span>
+      <div class="role-badges">
+        <span v-if="isAdmin"        class="role-badge role-badge--rose">Администратор</span>
+        <span v-if="isMLT"          class="role-badge">Лаборант</span>
+        <span v-if="isReceptionist" class="role-badge role-badge--blue">Регистратор</span>
+      </div>
     </div>
 
-    <!-- Two-column widgets -->
-    <div class="widgets-row">
+    <!-- MLT widgets: specimens & analyses updates -->
+    <div v-if="isMLT || isAdmin" class="widgets-row">
 
       <!-- Specimens awaiting collection -->
       <div class="widget">
@@ -60,7 +64,7 @@
             <i class="pi pi-chart-bar" />
             Обновления анализов
           </div>
-          <span class="widget-count widget-count--blue">
+          <span class="widget-count widget-count--red">
             {{ recentAnalysesEntries.length }}
           </span>
         </div>
@@ -92,27 +96,87 @@
 
     </div>
 
-  </div>
+    <!-- Receptionist widgets: recent patients & orders -->
+    <div v-if="isReceptionist || isAdmin" class="widgets-row">
 
-  <!-- ═══════════════════════════════ RECEPTIONIST VIEW ════════════════ -->
-  <div v-else-if="isReceptionist" class="dashboard">
-    <div class="welcome-bar">
-      <div class="welcome-left">
-        <span class="welcome-greeting">Добро пожаловать, {{ userName || 'Регистратор' }}</span>
-        <span class="welcome-date">{{ todayStr }}</span>
-      </div>
-      <span class="role-badge role-badge--blue">Регистратор</span>
-    </div>
-  </div>
+      <!-- Recently created patients -->
+      <div class="widget">
+        <div class="widget-header">
+          <div class="widget-title">
+            <i class="pi pi-user-plus" />
+            Недавно созданные пациенты
+          </div>
+          <span class="widget-count widget-count--red">
+            {{ recentPatients.length }}
+          </span>
+        </div>
+        <div class="widget-sub">Зарегистрированы за последние 7 дней</div>
 
-  <!-- ═══════════════════════════════════ ADMIN VIEW ══════════════════ -->
-  <div v-else-if="isAdmin" class="dashboard">
-    <div class="welcome-bar">
-      <div class="welcome-left">
-        <span class="welcome-greeting">Добро пожаловать, {{ userName || 'Администратор' }}</span>
-        <span class="welcome-date">{{ todayStr }}</span>
+        <div v-if="loadingPatients" class="widget-state">
+          <i class="pi pi-spin pi-spinner" /><span>Загрузка...</span>
+        </div>
+        <div v-else-if="recentPatients.length === 0" class="widget-state widget-state--ok">
+          <i class="pi pi-check-circle" /><span>Новых пациентов нет</span>
+        </div>
+        <div v-else class="patient-list">
+          <div
+            v-for="p in recentPatients"
+            :key="p.id"
+            class="patient-row"
+            @click="goToPatient(p.id)"
+          >
+            <span class="patient-id">#{{ p.id }}</span>
+            <span class="patient-name">{{ fullName(p) }}</span>
+            <span class="patient-createdby">{{ p.createdBy || '—' }}</span>
+            <span class="patient-snils">{{ p.snils || '—' }}</span>
+            <i class="pi pi-arrow-right patient-arrow" />
+          </div>
+        </div>
+
+        <button v-if="recentPatients.length > 0" class="widget-link" @click="router.push({ name: 'Patients' })">
+          Все пациенты <i class="pi pi-arrow-right" />
+        </button>
       </div>
-      <span class="role-badge role-badge--rose">Администратор</span>
+
+      <!-- Recent orders -->
+      <div class="widget">
+        <div class="widget-header">
+          <div class="widget-title">
+            <i class="pi pi-shopping-cart" />
+            Недавние заказы
+          </div>
+          <span class="widget-count widget-count--red">
+            {{ recentOrders.length }}
+          </span>
+        </div>
+        <div class="widget-sub">Созданы за последние 7 дней</div>
+
+        <div v-if="loadingOrders" class="widget-state">
+          <i class="pi pi-spin pi-spinner" /><span>Загрузка...</span>
+        </div>
+        <div v-else-if="recentOrders.length === 0" class="widget-state widget-state--ok">
+          <i class="pi pi-check-circle" /><span>Новых заказов нет</span>
+        </div>
+        <div v-else class="order-mini-list">
+          <div
+            v-for="o in recentOrders"
+            :key="o.id"
+            class="order-mini-row"
+            @click="goToOrder(o.id)"
+          >
+            <span class="order-mini-id">#{{ o.id }}</span>
+            <span class="order-mini-createdby">{{ o.createdBy || '—' }}</span>
+            <span class="order-mini-sum">{{ formatSum(o.totalSum) }}</span>
+            <span class="order-mini-status" :style="statusStyle(o.status)">{{ statusLabel(o.status) }}</span>
+            <i class="pi pi-arrow-right order-mini-arrow" />
+          </div>
+        </div>
+
+        <button v-if="recentOrders.length > 0" class="widget-link" @click="router.push({ name: 'Orders' })">
+          Все заказы <i class="pi pi-arrow-right" />
+        </button>
+      </div>
+
     </div>
   </div>
 
@@ -133,6 +197,8 @@ import { useRouter } from 'vue-router';
 import { userRoles, userName } from '@/stores/auth';
 import SpecimensService from '@/services/SpecimensService';
 import AnalysesService  from '@/services/AnalysesService';
+import PatientService   from '@/services/PatientService';
+import OrdersService    from '@/services/OrdersService';
 
 const router = useRouter();
 
@@ -156,6 +222,32 @@ const specimensCountClass = computed(() =>
   recentSpecimens.value.length > 0 ? 'widget-count--red' : 'widget-count--ok'
 );
 
+// ── Receptionist state ─────────────────────────────────────────────
+const recentPatients  = ref([]);
+const loadingPatients = ref(false);
+const recentOrders    = ref([]);
+const loadingOrders   = ref(false);
+
+// ── Order status map (borrowed from Orders.vue) ────────────────────
+const STATUS_MAP = {
+  REGISTERED:  { label: 'В обработке',          bg: '#fff7ed', color: '#c2410c' },
+  APPROVED:    { label: 'Ожидает сбора',         bg: '#e0f2fe', color: '#0369a1' },
+  PATCHING:    { label: 'В процессе изменения',  bg: '#f5f0ff', color: '#6d28d9' },
+  IN_PROGRESS: { label: 'В лаборатории',         bg: '#eef2ff', color: '#3730a3' },
+  COMPLETED:   { label: 'Завершён',              bg: '#eff6ff', color: '#1e40af' },
+  CANCELED:    { label: 'Отменён',               bg: '#f3f4f6', color: '#6b7280' },
+};
+
+function statusLabel(status) {
+  return STATUS_MAP[status]?.label ?? status ?? '—';
+}
+
+function statusStyle(status) {
+  const s = STATUS_MAP[status];
+  if (!s) return {};
+  return { background: s.bg, color: s.color };
+}
+
 // ── Fetch ──────────────────────────────────────────────────────────
 async function fetchRecentSpecimens() {
   loadingSpecimens.value = true;
@@ -176,6 +268,24 @@ async function fetchRecentAnalyses() {
   finally { loadingAnalyses.value = false; }
 }
 
+async function fetchRecentPatients() {
+  loadingPatients.value = true;
+  try {
+    const res             = await PatientService.getRecent(0, 20);
+    recentPatients.value  = res.data?.payload?.content ?? [];
+  } catch { /* тихо */ }
+  finally { loadingPatients.value = false; }
+}
+
+async function fetchRecentOrders() {
+  loadingOrders.value = true;
+  try {
+    const res           = await OrdersService.getRecent(0, 20);
+    recentOrders.value  = res.data?.payload?.content ?? [];
+  } catch { /* тихо */ }
+  finally { loadingOrders.value = false; }
+}
+
 // ── Navigation ─────────────────────────────────────────────────────
 function goToSpecimen(id) {
   router.push({ name: 'Samples', query: { specimenId: id } });
@@ -183,6 +293,14 @@ function goToSpecimen(id) {
 
 function goToAnalysis(id) {
   router.push({ name: 'Analyses', query: { id } });
+}
+
+function goToPatient(id) {
+  router.push({ name: 'Patients', query: { patientId: id } });
+}
+
+function goToOrder(id) {
+  router.push({ name: 'Orders', query: { id } });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -193,11 +311,26 @@ function shortDate(ts) {
   }).format(new Date(ts));
 }
 
+function fullName(p) {
+  return [p.lastName, p.firstName, p.middleName].filter(Boolean).join(' ') || '—';
+}
+
+function formatSum(val) {
+  if (val == null) return '—';
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency', currency: 'RUB', maximumFractionDigits: 2
+  }).format(val);
+}
+
 // ── Mount ──────────────────────────────────────────────────────────
 onMounted(() => {
-  if (isMLT.value) {
+  if (isMLT.value || isAdmin.value) {
     fetchRecentSpecimens();
     fetchRecentAnalyses();
+  }
+  if (isReceptionist.value || isAdmin.value) {
+    fetchRecentPatients();
+    fetchRecentOrders();
   }
 });
 </script>
@@ -238,6 +371,13 @@ onMounted(() => {
   font-size: 0.9375rem;
   color: #9ca3af;
   text-transform: capitalize;
+}
+
+.role-badges {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .role-badge {
@@ -306,7 +446,6 @@ onMounted(() => {
 }
 .widget-count--red { background: #fee2e2; color: #b91c1c; }
 .widget-count--ok  { background: #dcfce7; color: #15803d; }
-.widget-count--blue { background: #dbeafe; color: #1d4ed8; }
 
 .widget-sub {
   font-size: 0.875rem;
@@ -446,6 +585,143 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .analysis-row:hover .analysis-arrow { color: #1d4ed8; }
+
+/* ── Patient list ─────────────────────────────────────────────────── */
+.patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 420px;
+}
+
+.patient-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.425rem 0.625rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+}
+.patient-row:hover {
+  background: #fdf2f8;
+  border-color: #fecdd3;
+}
+
+.patient-id {
+  font-family: monospace;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #9f1239;
+  min-width: 50px;
+  flex-shrink: 0;
+}
+
+.patient-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  flex: 1.4;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-createdby {
+  font-size: 0.875rem;
+  color: #6b7280;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-snils {
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.patient-arrow {
+  font-size: 0.65rem;
+  color: #d1d5db;
+  flex-shrink: 0;
+}
+.patient-row:hover .patient-arrow { color: #9f1239; }
+
+/* ── Order mini list ──────────────────────────────────────────────── */
+.order-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  overflow-y: auto;
+  max-height: 420px;
+}
+
+.order-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.425rem 0.625rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border: 1px solid transparent;
+}
+.order-mini-row:hover {
+  background: #fdf2f8;
+  border-color: #fecdd3;
+}
+
+.order-mini-id {
+  font-family: monospace;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #9f1239;
+  min-width: 50px;
+  flex-shrink: 0;
+}
+
+.order-mini-createdby {
+  font-size: 0.875rem;
+  color: #6b7280;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-mini-sum {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  flex-shrink: 0;
+}
+
+.order-mini-status {
+  flex-shrink: 0;
+  padding: 0.2rem 0.625rem;
+  border-radius: 14px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.order-mini-arrow {
+  font-size: 0.65rem;
+  color: #d1d5db;
+  flex-shrink: 0;
+}
+.order-mini-row:hover .order-mini-arrow { color: #9f1239; }
 
 /* ── Widget link ──────────────────────────────────────────────────── */
 .widget-link {

@@ -103,10 +103,10 @@ const NAV_SECTIONS = [
       {
         label: 'Справочные',
         items: [
+          { to: '/lab/studies',      label: 'Исследования', icon: 'pi pi-book' },
           { to: '/lab/analyses',     label: 'Анализы',       icon: 'pi pi-chart-bar' },
           { to: '/lab/biomaterials', label: 'Биоматериалы', icon: 'pi pi-heart' },
           { to: '/lab/containers',   label: 'Контейнеры',   icon: 'pi pi-inbox' },
-          { to: '/lab/studies',      label: 'Исследования', icon: 'pi pi-book' },
         ]
       }
     ]

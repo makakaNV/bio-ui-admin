@@ -28,7 +28,7 @@
       </button>
     </div>
   </div>
-  <button class="btn-create-analysis" @click="createDialog.visible = true">
+  <button class="btn-create-analysis" :disabled="!isAdmin" @click="createDialog.visible = true">
     <i class="pi pi-plus" />
     Создать анализ
   </button>
@@ -115,8 +115,8 @@
     <template v-if="selectedAnalysis">
       <div class="detail-body">
         <div class="detail-actions">
-          <button class="action-btn" @click="openEdit">Изменить</button>
-          <button class="action-btn action-btn--danger" @click="openDelete">Удалить</button>
+          <button class="action-btn" :disabled="!isAdmin" @click="openEdit">Изменить</button>
+          <button class="action-btn action-btn--danger" :disabled="!isAdmin" @click="openDelete">Удалить</button>
         </div>
         <div class="detail-row">
           <span class="detail-key"><i class="pi pi-hashtag" />ID</span>
@@ -223,9 +223,13 @@ import Dialog    from 'primevue/dialog';
 import Paginator from 'primevue/paginator';
 import AnalysesService from '@/services/AnalysesService';
 import AnalysisFormDialog from '@/components/AnalysisFormDialog.vue';
+import { userRoles } from '@/stores/auth';
 
 const route  = useRoute();
 const router = useRouter();
+
+// ── Role-based permissions ────────────────────────────────────────
+const isAdmin = computed(() => userRoles.value.includes('ADMIN'));
 
 // ── State ──────────────────────────────────────────────────────────
 const analyses     = ref([]);
@@ -459,7 +463,11 @@ onMounted(async () => {
   transition: background 0.15s;
   flex-shrink: 0;
 }
-.btn-create-analysis:hover { background: #be123c; }
+.btn-create-analysis:hover:not(:disabled) { background: #be123c; }
+.btn-create-analysis:disabled {
+  background: #d1d5db;
+  cursor: default;
+}
 .btn-create-analysis .pi { font-size: 0.8rem; }
 
 /* ── Search bar ───────────────────────────────────────────────────── */
@@ -726,13 +734,18 @@ onMounted(async () => {
   background: #f9fafb;
   border-color: #d1d5db;
 }
-.action-btn--disabled {
+.action-btn--disabled,
+.action-btn:disabled {
   color: #d1d5db;
   cursor: default;
 }
 .action-btn--danger {
   color: #be123c;
   border-color: #fecdd3;
+}
+.action-btn--danger:disabled {
+  color: #d1d5db;
+  border-color: #e5e7eb;
 }
 .action-btn--danger:hover:not(:disabled) {
   background: #fff1f2;

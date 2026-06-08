@@ -16,4 +16,13 @@ export default {
   getByIds(ids) {
     return apiClient.post('/panels/ids', ids);
   },
+  create(body) {
+    return apiClient.post('/panels', body);
+  },
+  update(id, body) {
+    return apiClient.put(`/panels/${id}`, body);
+  },
+  delete(id) {
+    return apiClient.delete(`/panels/${id}`, { params: { softDelete: true } });
+  },
 };

@@ -10,6 +10,12 @@ export default {
   getByPatientId(id, page = 0, limit = 15) {
     return apiClient.get(`/orders/patient/${id}`, { params: { page, limit } });
   },
+  getByUserEmail(email, page = 0, limit = 15) {
+    return apiClient.get('/orders/user', { params: { email, page, limit } });
+  },
+  getRecent(page = 0, limit = 15) {
+    return apiClient.get('/orders/all/recent', { params: { page, limit } });
+  },
   cancel(id, cancelReason) {
     return apiClient.put(`/orders/${id}/cancel`, { cancelReason });
   },
