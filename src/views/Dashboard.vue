@@ -89,7 +89,7 @@
           </div>
         </div>
 
-        <button v-if="recentAnalysesEntries.length > 0" class="widget-link widget-link--blue" @click="router.push({ name: 'Analyses' })">
+        <button v-if="recentAnalysesEntries.length > 0" class="widget-link" @click="router.push({ name: 'Analyses' })">
           Все анализы <i class="pi pi-arrow-right" />
         </button>
       </div>
@@ -555,15 +555,15 @@ onMounted(() => {
   border: 1px solid transparent;
 }
 .analysis-row:hover {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  background: #fdf2f8;
+  border-color: #fecdd3;
 }
 
 .analysis-id {
   font-family: monospace;
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #1d4ed8;
+  color: #9f1239;
   min-width: 58px;
   flex-shrink: 0;
 }
@@ -584,7 +584,7 @@ onMounted(() => {
   color: #d1d5db;
   flex-shrink: 0;
 }
-.analysis-row:hover .analysis-arrow { color: #1d4ed8; }
+.analysis-row:hover .analysis-arrow { color: #9f1239; }
 
 /* ── Patient list ─────────────────────────────────────────────────── */
 .patient-list {
@@ -741,8 +741,6 @@ onMounted(() => {
   margin-top: auto;
 }
 .widget-link:hover { color: #be123c; }
-.widget-link--blue { color: #1d4ed8; }
-.widget-link--blue:hover { color: #1e40af; }
 .widget-link .pi { font-size: 0.7rem; }
 
 /* ── Quick nav ────────────────────────────────────────────────────── */
