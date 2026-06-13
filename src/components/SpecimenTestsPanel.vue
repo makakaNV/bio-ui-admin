@@ -158,6 +158,8 @@ const props = defineProps({
   tested:     { type: Boolean, default: false }
 });
 
+const emit = defineEmits(['results-submitted']);
+
 // ── State ─────────────────────────────────────────────────────────
 const expanded = ref(false);
 const loaded   = ref(false);
@@ -244,6 +246,7 @@ async function submitResults() {
     const updated = res.data?.payload ?? [];
     if (updated.length) tests.value = updated;
     rd.visible = false;
+    emit('results-submitted');
   } catch (err) {
     rd.apiError = err.response?.data?.message ?? 'Не удалось внести результаты';
   } finally {

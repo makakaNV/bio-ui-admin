@@ -148,6 +148,7 @@
             v-if="s.status === 'COLLECTED' || s.status === 'TESTED'"
             :specimen-id="s.id"
             :tested="s.status === 'TESTED'"
+            @results-submitted="onTestsSubmitted(s.id)"
           />
 
         </div><!-- /specimen-card -->
@@ -475,6 +476,11 @@ function applyUpdates(updatedList) {
     const idx = specimens.value.findIndex(s => s.id === upd.id);
     if (idx !== -1) specimens.value[idx] = upd;
   });
+}
+
+function onTestsSubmitted(specimenId) {
+  const specimen = specimens.value.find(s => s.id === specimenId);
+  if (specimen) specimen.status = 'TESTED';
 }
 
 // ── Formatters ────────────────────────────────────────────────────
